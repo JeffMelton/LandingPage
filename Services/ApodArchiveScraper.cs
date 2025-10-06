@@ -196,7 +196,7 @@ public partial class ApodArchiveScraper : IApodArchiveScraper
         }
     }
 
-    private static bool TryParseApodDate(string text, out DateOnly date)
+    internal static bool TryParseApodDate(string text, out DateOnly date)
     {
         date = default;
 

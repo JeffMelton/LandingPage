@@ -9,6 +9,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="LandingPage.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="LandingPage.Tests/**/*.cs" />
+    <EmbeddedResource Remove="LandingPage.Tests/**/*.cs" />
+    <None Remove="LandingPage.Tests/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.24.0" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.3" />
