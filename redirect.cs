@@ -50,13 +50,8 @@ public class redirect
 
             if (entries.Count == 0)
             {
-                _logger.LogError("No APOD entries available");
-                return new ContentResult
-                {
-                    Content = "Service temporarily unavailable - no APOD entries found",
-                    StatusCode = 503,
-                    ContentType = "text/plain"
-                };
+                _logger.LogWarning("No APOD entries available, falling back to xkcd");
+                return new RedirectResult("https://xkcd.com", permanent: false);
             }
 
             var selected = _selector.SelectEntry(entries, now);

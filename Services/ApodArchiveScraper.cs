@@ -131,51 +131,69 @@ public partial class ApodArchiveScraper : IApodArchiveScraper
 
     private async Task<List<ApodEntry>> ScrapeArchiveAsync(CancellationToken cancellationToken)
     {
-        var html = await _httpClient.GetStringAsync(ArchiveUrl, cancellationToken);
-        var doc = new HtmlDocument();
-        doc.LoadHtml(html);
-
-        var entries = new List<ApodEntry>();
-
-        // Find all links in the archive page
-        // Format: <a href="ap241231.html">2024 December 31</a>
-        var links = doc.DocumentNode.SelectNodes("//a[@href]");
-
-        if (links == null)
+        try
         {
-            _logger.LogWarning("No links found in archive page");
-            return entries;
-        }
+            var html = await _httpClient.GetStringAsync(ArchiveUrl, cancellationToken);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
 
-        foreach (var link in links)
-        {
-            var href = link.GetAttributeValue("href", string.Empty);
+            var entries = new List<ApodEntry>();
 
-            // Match links like "ap241231.html"
-            var match = ApLinkRegex().Match(href);
-            if (match.Success)
+            // Find all links in the archive page
+            // Format: <a href="ap241231.html">2024 December 31</a>
+            var links = doc.DocumentNode.SelectNodes("//a[@href]");
+
+            if (links == null)
             {
-                // Date is in the parent node's text before the link
-                // Format: "2025 October 01:  <a href="...">..."
-                var parentText = link.ParentNode?.InnerText ?? string.Empty;
+                _logger.LogWarning("No links found in archive page");
+                return entries;
+            }
 
-                // Extract date portion (before the colon)
-                var colonIndex = parentText.IndexOf(':');
-                if (colonIndex > 0)
+            foreach (var link in links)
+            {
+                var href = link.GetAttributeValue("href", string.Empty);
+
+                // Match links like "ap241231.html"
+                var match = ApLinkRegex().Match(href);
+                if (match.Success)
                 {
-                    var dateText = parentText.Substring(0, colonIndex).Trim();
+                    // Date is in the parent node's text before the link
+                    // Format: "2025 October 01:  <a href=\"...\">...\""
+                    var parentText = link.ParentNode?.InnerText ?? string.Empty;
 
-                    if (TryParseApodDate(dateText, out var date))
+                    // Extract date portion (before the colon)
+                    var colonIndex = parentText.IndexOf(':');
+                    if (colonIndex > 0)
                     {
-                        var fullUrl = $"https://apod.nasa.gov/apod/{href}";
-                        entries.Add(new ApodEntry(date, fullUrl));
+                        var dateText = parentText.Substring(0, colonIndex).Trim();
+
+                        if (TryParseApodDate(dateText, out var date))
+                        {
+                            var fullUrl = $"https://apod.nasa.gov/apod/{href}";
+                            entries.Add(new ApodEntry(date, fullUrl));
+                        }
                     }
                 }
             }
-        }
 
-        _logger.LogInformation("Scraped {Count} APOD entries from archive", entries.Count);
-        return entries;
+            _logger.LogInformation("Scraped {Count} APOD entries from archive", entries.Count);
+            return entries;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request failed while scraping APOD archive from {ArchiveUrl}", ArchiveUrl);
+            return new List<ApodEntry>();
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, "Timeout while scraping APOD archive from {ArchiveUrl}", ArchiveUrl);
+            return new List<ApodEntry>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while scraping APOD archive");
+            return new List<ApodEntry>();
+        }
     }
 
     private static bool TryParseApodDate(string text, out DateOnly date)
